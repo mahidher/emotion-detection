@@ -55,7 +55,10 @@ def detect(opt):
     if device.type != 'cpu':
         model(torch.zeros(1, 3, imgsz, imgsz).to(device).type_as(next(model.parameters())))  # run once
     t0 = time.time()
+    exit_flag = False
     for path, img, im0s, vid_cap in dataset:
+        if exit_flag:
+            break
         img = torch.from_numpy(img).to(device)
         img = img.half() if half else img.float()  # uint8 to fp16/32
         img /= 255.0  # 0 - 255 to 0.0 - 1.0
@@ -121,7 +124,16 @@ def detect(opt):
             if view_img:
                 display_img = cv2.resize(im0, (im0.shape[1]*2,im0.shape[0]*2))
                 cv2.imshow("Emotion Detection",display_img)
-                cv2.waitKey(1)  # 1 millisecond
+                key = cv2.waitKey(1) & 0xFF  # Wait for key press
+                if key == ord('q') or key == 27:  # 'q' or ESC key
+                    print("Exiting application...")
+                    exit_flag = True
+                    break
+                # Check if window was closed
+                if cv2.getWindowProperty("Emotion Detection", cv2.WND_PROP_VISIBLE) < 1:
+                    print("Window closed, exiting application...")
+                    exit_flag = True
+                    break
             if not nosave:
                 # check what the output format is
                 ext = save_path.split(".")[-1]
@@ -148,10 +160,20 @@ def detect(opt):
                     create_folder(output_path)
                     cv2.imwrite(output_path,im0)
 
+        if exit_flag:
+            break
+            
         if show_fps:
             # calculate and display fps
             print(f"FPS: {1/(time.time()-t0):.2f}"+" "*5,end="\r")
             t0 = time.time()
+    
+    # Cleanup
+    if view_img:
+        cv2.destroyAllWindows()
+    if vid_writer:
+        vid_writer.release()
+    print("Application closed successfully.")
         
 
 if __name__ == '__main__':
